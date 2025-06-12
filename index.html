@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rite Hite Device Checklist</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        /* Simple animation for list items */
+        .list-item {
+            transition: all 0.2s ease-in-out;
+        }
+        .list-item:hover {
+            transform: scale(1.02);
+        }
+        #completed-list.hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-4xl">
+        
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-900">Rite Hite Device Checklist</h1>
+            <p class="text-gray-600 mt-2">An inspection tool for marking and tracking devices.</p>
+        </header>
+
+        <!-- Controls: Search and Sort -->
+        <div class="sticky top-0 bg-gray-100 z-10 py-4 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="relative">
+                    <input type="text" id="search-input" placeholder="Search by name, type, or address..." class="w-full p-3 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                    <svg class="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                    </svg>
+                </div>
+                <div>
+                    <select id="sort-select" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                        <option value="address-asc">Sort by Address (Asc)</option>
+                        <option value="address-desc">Sort by Address (Desc)</option>
+                        <option value="label-asc">Sort by Label (A-Z)</option>
+                        <option value="label-desc">Sort by Label (Z-A)</option>
+                        <option value="type-asc">Sort by Type (A-Z)</option>
+                        <option value="type-desc">Sort by Type (Z-A)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Last Checked Display -->
+        <div id="last-checked-container" class="mb-6 p-4 bg-blue-100 border-l-4 border-blue-500 rounded-lg shadow-sm" style="display: none;">
+            <h3 class="font-bold text-blue-800">Last Checked Device</h3>
+            <p id="last-checked-text" class="text-blue-700"></p>
+        </div>
+        
+        <!-- Main content area -->
+        <main class="space-y-8">
+
+            <!-- To-Do List -->
+            <section>
+                <h2 class="text-2xl font-semibold mb-4 border-b pb-2">Pending Devices (<span id="todo-count">0</span>)</h2>
+                <div id="todo-list" class="space-y-3">
+                    <!-- Devices to be checked will be rendered here -->
+                </div>
+            </section>
+
+            <!-- Completed List (Collapsible) -->
+            <section>
+                <div id="completed-header" class="flex justify-between items-center cursor-pointer bg-gray-200 p-3 rounded-lg hover:bg-gray-300 transition">
+                    <h2 class="text-2xl font-semibold">Completed Devices (<span id="completed-count">0</span>)</h2>
+                    <svg id="completed-arrow" class="w-6 h-6 transform transition-transform" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                    </svg>
+                </div>
+                <div id="completed-list" class="mt-4 space-y-3 hidden">
+                    <!-- Completed devices will be rendered here -->
+                </div>
+            </section>
+
+        </main>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DATA ---
+            // Parsed and cleaned from the provided PDF document.
+            // Duplicates in address are intentional as they are different device types (Detectors vs Modules).
+            // A unique ID is created for each device to handle this.
+            const allDevices = [
+                // Detectors Loop 1
+                { id: 'D1', address: 1, type: 'SMOKE(PHOTO)', label: 'SMOKE 1 WEST' },
+                { id: 'D2', address: 2, type: 'SMOKE(PHOTO)', label: 'SMOKE 2 WEST' },
+                { id: 'D3', address: 3, type: 'SMOKE(PHOTO)', label: 'SMOKE 3 WEST' },
+                { id: 'D4', address: 4, type: 'SMOKE(PHOTO)', label: 'SMOKE 4 WEST' },
+                { id: 'D5', address: 5, type: 'SMOKE(PHOTO)', label: 'SMOKE 5 WEST' },
+                { id: 'D6', address: 6, type: 'SMOKE(PHOTO)', label: 'SMOKE 6 WEST' },
+                { id: 'D7', address: 7, type: 'SMOKE(PHOTO)', label: 'SMOKE 7 EAST' },
+                { id: 'D8', address: 8, type: 'SMOKE(PHOTO)', label: 'SMOKE 8 EAST' },
+                { id: 'D9', address: 9, type: 'SMOKE(PHOTO)', label: 'SMOKE 9 EAST' },
+                { id: 'D10', address: 10, type: 'SMOKE(PHOTO)', label: 'SMOKE 10 EAST' },
+                { id: 'D11', address: 11, type: 'SMOKE(PHOTO)', label: 'SMOKE 11 EAST' },
+                { id: 'D12', address: 12, type: 'SMOKE(PHOTO)', label: 'SMOKE 12 EAST' },
+                { id: 'D13', address: 13, type: 'SMOKE(PHOTO)', label: 'SMOKE 13 EAST' },
+                { id: 'D14', address: 14, type: 'SMOKE(PHOTO)', label: 'EXEC CONF SMOKE' },
+                { id: 'D15', address: 15, type: 'SMOKE(PHOTO)', label: 'MECH ROOM SMOKE' },
+                { id: 'D16', address: 16, type: 'SMOKE(PHOTO)', label: 'DUCT SOX OFC' },
+                { id: 'D17', address: 17, type: 'SMOKE(PHOTO)', label: 'DUCT SOX OFC' },
+                { id: 'D18', address: 18, type: 'SMOKE(PHOTO)', label: 'DUCT SOX OFC' },
+                { id: 'D19', address: 19, type: 'SMOKE(PHOTO)', label: 'DUCT SOX OFC' },
+                { id: 'D20', address: 20, type: 'SMOKE(PHOTO)', label: 'DUCT SOX OFC' },
+                { id: 'D21', address: 21, type: 'SMOKE(PHOTO)', label: 'DUCT SOX OFC' },
+                { id: 'D26', address: 26, type: 'SMOKE(PHOTO)', label: 'PANEL ROOM SMOKE' },
+                { id: 'D30', address: 30, type: 'SMOKE(PHOTO)', label: 'DUCT SMOKE 30' },
+                { id: 'D31', address: 31, type: 'SMOKE(PHOTO)', label: 'DUCT SMOKE 31' },
+                { id: 'D32', address: 32, type: 'SMOKE(PHOTO)', label: 'DUCT SMOKE 32' },
+                { id: 'D33', address: 33, type: 'SMOKE(PHOTO)', label: 'DUCT SMOKE 33' },
+                { id: 'D34', address: 34, type: 'SMOKE(PHOTO)', label: 'DUCT SMOKE 34' },
+                { id: 'D35', address: 35, type: 'SMOKE(PHOTO)', label: 'DUCT SMOKE 35' },
+                { id: 'D37', address: 37, type: 'SMOKE(PHOTO)', label: 'DUCT SMOKE 37' },
+                { id: 'D38', address: 38, type: 'SMOKE(PHOTO)', label: 'DUCT SMOKE 38' },
+                { id: 'D39', address: 39, type: 'SMOKE(PHOTO)', label: 'DUCT SMOKE 39' },
+                { id: 'D41', address: 41, type: 'SMOKE(PHOTO)', label: 'DUCT SMOKE 41' },
+                { id: 'D42', address: 42, type: 'SMOKE(PHOTO)', label: 'DUCT SMOKE 42' },
+                
+                // Modules Loop 1
+                { id: 'M1', address: 1, type: 'PULL STATION', label: 'WEST PULL STATION' },
+                { id: 'M2', address: 2, type: 'PULL STATION', label: 'SOUTH PULL STATION' },
+                { id: 'M3', address: 3, type: 'PULL STATION', label: 'EAST PULL STATION' },
+                { id: 'M4', address: 4, type: 'RELAY-1FC', label: 'DOOR HOLDER' },
+                { id: 'M5', address: 5, type: 'PULL STATION', label: 'PULL STATION 5' },
+                { id: 'M6', address: 6, type: 'PULL STATION', label: 'PULL STATION 6' },
+                { id: 'M7', address: 7, type: 'PULL STATION', label: 'PULL STATION 7' },
+                { id: 'M8', address: 8, type: 'PULL STATION', label: 'PULL STATION 8' },
+                { id: 'M9', address: 9, type: 'PULL STATION', label: 'PULL STATION 9' },
+                { id: 'M10', address: 10, type: 'PULL STATION', label: 'PULL STATION 10' },
+                { id: 'M11', address: 11, type: 'PULL STATION', label: 'SLIDER PULL STATION' },
+                { id: 'M12', address: 12, type: 'RELAY-1FC', label: 'HORN RELAY' },
+                { id: 'M13', address: 13, type: 'RELAY-1FC', label: 'NAC 1/2 SILENCE' },
+                { id: 'M14', address: 14, type: 'RELAY-1FC', label: 'NAC 3/4 SILENCE' },
+                { id: 'M15', address: 15, type: 'PULL STATION', label: 'RECEIVING PULLSTATON' },
+                { id: 'M28', address: 28, type: 'TROUBLE MON', label: 'MAIN VALVE 1 NRISER' },
+                { id: 'M29', address: 29, type: 'TROUBLE MON', label: 'MAIN VALVE 2 NRISER' },
+                { id: 'M30', address: 30, type: 'TROUBLE MON', label: 'BYPASS 1 NRISER' },
+                { id: 'M31', address: 31, type: 'TROUBLE MON', label: 'FIRE PUMP SUCTION' },
+                { id: 'M32', address: 32, type: 'TROUBLE MON', label: 'BYPASS 2 NRISER' },
+                { id: 'M33', address: 33, type: 'TROUBLE MON', label: 'TEST HEADER NRISER' },
+                { id: 'M34', address: 34, type: 'TROUBLE MON', label: 'FIRE PUMP SYSTEM' },
+                { id: 'M35', address: 35, type: 'TROUBLE MON', label: 'GATE VALVE 1 NRISER' },
+                { id: 'M36', address: 36, type: 'TROUBLE MON', label: 'GATE VALVE 2 NRISER' },
+                { id: 'M37', address: 37, type: 'TROUBLE MON', label: 'GATE VALVE 3 NRISER' },
+                { id: 'M38', address: 38, type: 'TROUBLE MON', label: 'GATE VALVE 4 NRISER' },
+                { id: 'M39', address: 39, type: 'WATER FLOW', label: 'WATER FLOW 1' },
+                { id: 'M40', address: 40, type: 'WATER FLOW', label: 'WATER FLOW 2' },
+                { id: 'M41', address: 41, type: 'WATER FLOW', label: 'WATER FLOW 3' },
+                { id: 'M42', address: 42, type: 'WATER FLOW', label: 'WATER FLOW 4' },
+                { id: 'M46', address: 46, type: 'RELAY-1FC', label: 'PS 2 RELAY' },
+                { id: 'M47', address: 47, type: 'RELAY-1FC', label: 'PS 3/4 RELAY' },
+                { id: 'M48', address: 48, type: 'WATER FLOW', label: 'WATER FLOW 1' },
+                { id: 'M49', address: 49, type: 'WATER FLOW', label: 'WATER FLOW 2' },
+                { id: 'M50', address: 50, type: 'WATER FLOW', label: 'WATER FLOW 3' },
+                { id: 'M51', address: 51, type: 'WATER FLOW', label: 'WATER FLOW 4' },
+                { id: 'M52', address: 52, type: 'WATER FLOW', label: 'WATER FLOW 5' },
+                { id: 'M53', address: 53, type: 'TROUBLE MON', label: 'GATE VALVE 1' },
+                { id: 'M54', address: 54, type: 'TROUBLE MON', label: 'GATE VALVE 2' },
+                { id: 'M55', address: 55, type: 'TROUBLE MON', label: 'GATE VALVE 3' },
+                { id: 'M56', address: 56, type: 'TROUBLE MON', label: 'GATE VALVE 4' },
+                { id: 'M57', address: 57, type: 'TROUBLE MON', label: 'GATE VALVE 5' },
+                { id: 'M58', address: 58, type: 'SUPERVISORY', label: 'PIV 1' },
+                { id: 'M59', address: 59, type: 'SUPERVISORY', label: 'AC LOSS' },
+                { id: 'M60', address: 60, type: 'SUPERVISORY', label: 'PASE REVERSE' },
+                { id: 'M61', address: 61, type: 'SUPERVISORY', label: 'PUMP RUN' },
+                { id: 'M62', address: 62, type: 'MONITOR', label: 'BREAK RM DUCT SMOKE' },
+                { id: 'M65', address: 65, type: 'PULL STATION', label: 'WAREHOUSE NE' },
+                { id: 'M66', address: 66, type: 'PULL STATION', label: 'WAREHOUSE NE MID' },
+                { id: 'M67', address: 67, type: 'PULL STATION', label: 'WAREHOUSE NW MID' },
+                { id: 'M68', address: 68, type: 'PULL STATION', label: 'WAREHOUSE NW' },
+                { id: 'M69', address: 69, type: 'PULL STATION', label: 'WAREHOUSE N' },
+                { id: 'M70', address: 70, type: 'PULL STATION', label: 'ROD MANPULL' },
+                { id: 'M71', address: 71, type: 'MONITOR', label: 'SAPPHIRE' },
+                { id: 'M72', address: 72, type: 'SUPERVISORY', label: 'HORN DISCONNECT' },
+                { id: 'M73', address: 73, type: 'RELAY-1FC', label: 'PS#1 TRIGGER' },
+                { id: 'M74', address: 74, type: 'RELAY-1FC', label: 'PS#2 TRIGGER' },
+                { id: 'M75', address: 75, type: 'RELAY-1FC', label: 'PS #3/4 TRIGGER' },
+                { id: 'M76', address: 76, type: 'TROUBLE MON', label: 'PS 1 SUPERVISORY' },
+                { id: 'M77', address: 77, type: 'TROUBLE MON', label: 'PS 2 SUPERVISORY' },
+                { id: 'M78', address: 78, type: 'TROUBLE MON', label: 'PS 3 SUPERVISORY' },
+                { id: 'M79', address: 79, type: 'TROUBLE MON', label: 'PS 4 SUPERVISORY' },
+                { id: 'M80', address: 80, type: 'RELAY-1FC', label: 'ACP 1 MAG RELAY' }
+            ].map(d => ({ ...d, completed: false }));
+
+            // --- STATE MANAGEMENT ---
+            let state = {
+                devices: [],
+                filter: '',
+                sortBy: 'address-asc',
+                lastCheckedId: null,
+            };
+
+            // --- DOM ELEMENTS ---
+            const todoList = document.getElementById('todo-list');
+            const completedList = document.getElementById('completed-list');
+            const searchInput = document.getElementById('search-input');
+            const sortSelect = document.getElementById('sort-select');
+            const todoCountEl = document.getElementById('todo-count');
+            const completedCountEl = document.getElementById('completed-count');
+            const completedHeader = document.getElementById('completed-header');
+            const completedArrow = document.getElementById('completed-arrow');
+            const lastCheckedContainer = document.getElementById('last-checked-container');
+            const lastCheckedText = document.getElementById('last-checked-text');
+            
+            // --- LOCAL STORAGE FUNCTIONS ---
+            function saveData() {
+                const dataToSave = {
+                    devices: state.devices.map(({id, completed}) => ({id, completed})),
+                    lastCheckedId: state.lastCheckedId
+                };
+                localStorage.setItem('deviceChecklistData', JSON.stringify(dataToSave));
+            }
+
+            function loadData() {
+                const savedData = localStorage.getItem('deviceChecklistData');
+                if (savedData) {
+                    const parsedData = JSON.parse(savedData);
+                    const completedMap = new Map(parsedData.devices.map(d => [d.id, d.completed]));
+                    
+                    state.devices = allDevices.map(device => ({
+                        ...device,
+                        completed: completedMap.get(device.id) || false
+                    }));
+                    state.lastCheckedId = parsedData.lastCheckedId;
+                } else {
+                    state.devices = [...allDevices];
+                }
+            }
+
+            // --- RENDER FUNCTIONS ---
+            function createDeviceElement(device) {
+                const isCompleted = device.completed;
+                const element = document.createElement('div');
+                element.className = `list-item flex items-center p-3 rounded-lg shadow-sm cursor-pointer border ${isCompleted ? 'bg-green-100 border-green-200' : 'bg-white border-gray-200'}`;
+                element.dataset.id = device.id;
+                
+                element.innerHTML = `
+                    <div class="flex-shrink-0 mr-4">
+                        <div class="w-6 h-6 rounded-full flex items-center justify-center ${isCompleted ? 'bg-green-500' : 'border-2 border-gray-400'}">
+                            ${isCompleted ? `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg>` : ''}
+                        </div>
+                    </div>
+                    <div class="flex-grow">
+                        <p class="font-bold text-gray-800">${device.label}</p>
+                        <p class="text-sm text-gray-600">
+                            <span class="font-semibold">Address:</span> ${device.address} | <span class="font-semibold">Type:</span> ${device.type}
+                        </p>
+                    </div>
+                `;
+                
+                element.addEventListener('click', () => toggleDeviceStatus(device.id));
+                return element;
+            }
+
+            function renderLists() {
+                // Clear current lists
+                todoList.innerHTML = '';
+                completedList.innerHTML = '';
+
+                // Filter and sort devices
+                let devicesToDisplay = [...state.devices];
+                
+                if (state.filter) {
+                    const lowercasedFilter = state.filter.toLowerCase();
+                    devicesToDisplay = devicesToDisplay.filter(d => 
+                        d.label.toLowerCase().includes(lowercasedFilter) ||
+                        d.type.toLowerCase().includes(lowercasedFilter) ||
+                        String(d.address).includes(lowercasedFilter)
+                    );
+                }
+
+                devicesToDisplay.sort((a, b) => {
+                    const [key, direction] = state.sortBy.split('-');
+                    const valA = key === 'address' ? a[key] : a[key].toLowerCase();
+                    const valB = key === 'address' ? b[key] : b[key].toLowerCase();
+                    
+                    if (valA < valB) return direction === 'asc' ? -1 : 1;
+                    if (valA > valB) return direction === 'asc' ? 1 : -1;
+                    return 0;
+                });
+
+                // Separate into todo and completed
+                const todoDevices = devicesToDisplay.filter(d => !d.completed);
+                const completedDevices = devicesToDisplay.filter(d => d.completed);
+
+                // Populate lists and handle empty states
+                if (todoDevices.length > 0) {
+                    todoDevices.forEach(d => todoList.appendChild(createDeviceElement(d)));
+                } else {
+                    todoList.innerHTML = `<p class="text-gray-500 italic text-center p-4">No pending devices found.</p>`;
+                }
+                
+                if (completedDevices.length > 0) {
+                    completedDevices.forEach(d => completedList.appendChild(createDeviceElement(d)));
+                } else {
+                    completedList.innerHTML = `<p class="text-gray-500 italic text-center p-4">No completed devices yet.</p>`;
+                }
+
+                // Update counts
+                todoCountEl.textContent = state.devices.filter(d => !d.completed).length;
+                completedCountEl.textContent = state.devices.filter(d => d.completed).length;
+                
+                // Update last checked display
+                renderLastChecked();
+            }
+
+            function renderLastChecked() {
+                if (state.lastCheckedId) {
+                    const device = state.devices.find(d => d.id === state.lastCheckedId);
+                    if (device) {
+                        lastCheckedText.textContent = `[${device.completed ? 'Checked' : 'Unchecked'}] ${device.label} (Address: ${device.address})`;
+                        lastCheckedContainer.style.display = 'block';
+                    }
+                } else {
+                    lastCheckedContainer.style.display = 'none';
+                }
+            }
+            
+            // --- EVENT HANDLERS ---
+            function toggleDeviceStatus(id) {
+                const device = state.devices.find(d => d.id === id);
+                if (device) {
+                    device.completed = !device.completed;
+                    state.lastCheckedId = id;
+                    saveData();
+                    renderLists();
+                }
+            }
+
+            searchInput.addEventListener('input', (e) => {
+                state.filter = e.target.value;
+                renderLists();
+            });
+
+            sortSelect.addEventListener('change', (e) => {
+                state.sortBy = e.target.value;
+                renderLists();
+            });
+
+            completedHeader.addEventListener('click', () => {
+                completedList.classList.toggle('hidden');
+                completedArrow.classList.toggle('rotate-180');
+            });
+
+            // --- INITIALIZATION ---
+            function init() {
+                loadData();
+                renderLists();
+            }
+            
+            init();
+        });
+    </script>
+</body>
+</html>
